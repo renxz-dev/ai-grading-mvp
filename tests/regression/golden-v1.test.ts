@@ -10,6 +10,7 @@ import {
 } from '../../src/data/golden-v1';
 import { createMockV1Provider } from '../../src/providers/mock-v1-provider';
 import { createMockV2Provider } from '../../src/providers/mock-v2-provider';
+import { runEvaluation } from '../../src/evaluation/evaluation-run';
 
 describe('frozen business demo data', () => {
   it('keeps the four demo questions and first answers unchanged', () => {
@@ -144,5 +145,56 @@ describe('mock providers', () => {
     await expect(v2.grade(input)).resolves.toMatchObject({
       errorType: 'calculation_error',
     });
+  });
+});
+
+describe('frozen V1/V2 regression', () => {
+  it('computes the Mock V1 baseline from actual outputs', async () => {
+    const run = await runEvaluation(
+      createMockV1Provider({ delayMs: 0 }),
+      goldenV1,
+      '2026-08-26T00:00:00.000Z',
+    );
+
+    expect(run).toMatchObject({
+      providerVersion: 'mock-v1',
+      promptVersion: 'grading-v1',
+      datasetVersion: 'golden-v1',
+      totalCases: 12,
+      passedCases: 7,
+      failedCases: 5,
+      criticalErrors: 4,
+      gateResult: 'BLOCKED',
+    });
+    expect(
+      run.results
+        .filter(({ finalResult }) => finalResult === 'FAIL')
+        .map(({ caseId }) => caseId),
+    ).toEqual(['GC-06', 'GC-07', 'GC-10', 'GC-11', 'GC-12']);
+    expect(run.metrics.reasonAccuracy).toBeCloseTo(4 / 6);
+    expect(run.metrics.reviewPolicyPassRate).toBeCloseTo(11 / 12);
+    expect(run.metrics.reviewRate).toBeCloseTo(6 / 12);
+  });
+
+  it('computes the Mock V2 regression against the same golden-v1', async () => {
+    const run = await runEvaluation(
+      createMockV2Provider({ delayMs: 0 }),
+      goldenV1,
+      '2026-08-26T00:00:00.000Z',
+    );
+
+    expect(run).toMatchObject({
+      providerVersion: 'mock-v2',
+      promptVersion: 'grading-v2',
+      datasetVersion: 'golden-v1',
+      totalCases: 12,
+      passedCases: 12,
+      failedCases: 0,
+      criticalErrors: 0,
+      gateResult: 'PASS',
+    });
+    expect(run.results.every(({ finalResult }) => finalResult === 'PASS')).toBe(
+      true,
+    );
   });
 });
