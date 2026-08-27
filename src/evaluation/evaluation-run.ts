@@ -5,7 +5,7 @@ import type {
 import type { GradingProvider } from '../providers/grading-provider';
 import { evaluateDataset } from './evaluation-engine';
 import { calculateMetrics } from './metrics';
-import { evaluateReleaseGate } from './release-gate';
+import { evaluateReleaseGateDetails } from './release-gate';
 
 export async function runEvaluation(
   provider: GradingProvider,
@@ -15,7 +15,7 @@ export async function runEvaluation(
 ): Promise<EvaluationRun> {
   const { actualResults, evaluations } = await evaluateDataset(dataset, provider);
   const metrics = calculateMetrics(dataset, evaluations, actualResults);
-  const gateResult = evaluateReleaseGate({
+  const gateDetails = evaluateReleaseGateDetails({
     dataset,
     actualResults,
     evaluations,
@@ -36,7 +36,9 @@ export async function runEvaluation(
     failedCases: dataset.length - passedCases,
     criticalErrors: metrics.criticalErrorCount,
     metrics,
-    gateResult,
+    gateResult: gateDetails.overallResult,
+    gateDetails,
+    actualResults,
     results: evaluations,
   };
 }

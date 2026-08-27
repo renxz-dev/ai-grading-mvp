@@ -6,7 +6,10 @@ import type {
   GradingResult,
 } from '../../src/domain/models';
 import { calculateRuntimeHumanReviewRate } from '../../src/evaluation/metrics';
-import { evaluateReleaseGate } from '../../src/evaluation/release-gate';
+import {
+  evaluateReleaseGate,
+  evaluateReleaseGateDetails,
+} from '../../src/evaluation/release-gate';
 import { createRuntimeDecision } from '../../src/rules/risk-policy';
 
 const gc01 = goldenV1[0];
@@ -92,6 +95,50 @@ describe('five frozen release gate rules', () => {
 
   it('passes when none of the five rules is hit', () => {
     expect(gate()).toBe('PASS');
+  });
+
+  it('exposes the same five rule decisions without duplicating gate behavior', () => {
+    const details = evaluateReleaseGateDetails({
+      dataset: [gc01],
+      actualResults: [passingActual],
+      evaluations: [passingEvaluation],
+      metrics: passingMetrics,
+    });
+
+    expect(details.overallResult).toBe('PASS');
+    expect(details.rules).toHaveLength(5);
+    expect(details.rules.map(({ id }) => id)).toEqual([
+      'critical-errors',
+      'low-risk-judgment-accuracy',
+      'consistency-pass-rate',
+      'high-risk-review-required',
+      'unsafe-feedback',
+    ]);
+    expect(details.rules.every(({ passed }) => passed)).toBe(true);
+    expect(evaluateReleaseGate({
+      dataset: [gc01],
+      actualResults: [passingActual],
+      evaluations: [passingEvaluation],
+      metrics: passingMetrics,
+    })).toBe(details.overallResult);
+  });
+
+  it('marks each frozen rule independently when its condition is violated', () => {
+    const details = evaluateReleaseGateDetails({
+      dataset: [gc01],
+      actualResults: [{ ...passingActual, riskLevel: 'HIGH', reviewRequired: false, feedback: '太差了' }],
+      evaluations: [{ ...passingEvaluation, judgmentPass: false }],
+      metrics: { ...passingMetrics, criticalErrorCount: 1, consistencyPassRate: 0 },
+    });
+
+    expect(details.overallResult).toBe('BLOCKED');
+    expect(details.rules).toEqual([
+      expect.objectContaining({ id: 'critical-errors', passed: false }),
+      expect.objectContaining({ id: 'low-risk-judgment-accuracy', passed: false }),
+      expect.objectContaining({ id: 'consistency-pass-rate', passed: false }),
+      expect.objectContaining({ id: 'high-risk-review-required', passed: false }),
+      expect.objectContaining({ id: 'unsafe-feedback', passed: false }),
+    ]);
   });
 });
 

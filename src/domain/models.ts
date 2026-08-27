@@ -19,6 +19,26 @@ export type ReviewStatus = 'NOT_REQUIRED' | 'PENDING' | 'APPROVED' | 'MODIFIED';
 export type CaseResult = 'PASS' | 'FAIL';
 export type GateResult = 'PASS' | 'BLOCKED';
 
+export type ReleaseGateRuleId =
+  | 'critical-errors'
+  | 'low-risk-judgment-accuracy'
+  | 'consistency-pass-rate'
+  | 'high-risk-review-required'
+  | 'unsafe-feedback';
+
+export interface ReleaseGateRuleDetail {
+  id: ReleaseGateRuleId;
+  label: string;
+  passed: boolean;
+  threshold: string;
+  observed: string;
+}
+
+export interface ReleaseGateDetails {
+  overallResult: GateResult;
+  rules: readonly ReleaseGateRuleDetail[];
+}
+
 export type WorkflowState =
   | 'DRAFT'
   | 'PUBLISHED'
@@ -153,5 +173,7 @@ export interface EvaluationRun {
   criticalErrors: number;
   metrics: EvaluationMetrics;
   gateResult: GateResult;
+  gateDetails: ReleaseGateDetails;
+  actualResults: GradingResult[];
   results: EvaluationResult[];
 }

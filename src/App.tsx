@@ -11,6 +11,9 @@ import {
 } from './data/demo-assignment';
 import type { GradingProvider } from './providers/grading-provider';
 import { createMockV1Provider } from './providers/mock-v1-provider';
+import EvaluationDashboard from './components/EvaluationDashboard';
+import type { EvaluationRunner } from './components/EvaluationDashboard';
+import { runEvaluation } from './evaluation/evaluation-run';
 import {
   completeWorkflow,
   createWorkflowContext,
@@ -27,9 +30,10 @@ import './styles.css';
 
 export interface AppProps {
   provider?: GradingProvider;
+  evaluationRunner?: EvaluationRunner;
 }
 
-type Role = 'TEACHER' | 'STUDENT';
+type Role = 'TEACHER' | 'STUDENT' | 'QUALITY';
 type ReviewDraftField = 'score' | 'feedback' | 'reason';
 
 type ReviewDraft = {
@@ -83,11 +87,12 @@ function ErrorNotice({ message }: { message: string | undefined }) {
   );
 }
 
-export default function App({ provider }: AppProps = {}) {
+export default function App({ provider, evaluationRunner: evaluationRunnerProp }: AppProps = {}) {
   const activeProvider = useMemo(
     () => provider ?? createMockV1Provider(),
     [provider],
   );
+  const evaluationRunner = evaluationRunnerProp ?? runEvaluation;
   const [context, setContext] = useState<WorkflowContext>(() =>
     createWorkflowContext(demoAssignment),
   );
@@ -288,40 +293,53 @@ export default function App({ provider }: AppProps = {}) {
           >
             学生端
           </button>
+          <button
+            className={role === 'QUALITY' ? 'tab is-active' : 'tab'}
+            type="button"
+            role="tab"
+            aria-selected={role === 'QUALITY'}
+            onClick={() => setRole('QUALITY')}
+          >
+            AI 质量控制台
+          </button>
         </div>
         <div className="control-actions">
-          <span className="state-pill">当前状态：{context.state}</span>
+          {role !== 'QUALITY' && <span className="state-pill">当前状态：{context.state}</span>}
           <button className="button button-quiet" type="button" onClick={resetDemo}>
             重置演示
           </button>
         </div>
       </section>
 
-      <section className="workflow-banner" aria-label="当前流程">
-        <div>
-          <span className="section-kicker">WORKFLOW CONTEXT</span>
-          <p>{workflowHints[context.state]}</p>
-        </div>
-        <div className="workflow-track" aria-label="状态流转">
-          <span className={context.state === 'DRAFT' ? 'track-step is-current' : 'track-step'}>DRAFT</span>
-          <span className="track-arrow">→</span>
-          <span className={context.state === 'PUBLISHED' ? 'track-step is-current' : 'track-step'}>PUBLISHED</span>
-          <span className="track-arrow">→</span>
-          <span className={context.state === 'SUBMITTED' ? 'track-step is-current' : 'track-step'}>SUBMITTED</span>
-          <span className="track-arrow">→</span>
-          <span className={context.state === 'AI_GRADED' ? 'track-step is-current' : 'track-step'}>AI_GRADED</span>
-          <span className="track-arrow">→</span>
-          <span className={context.state === 'CORRECTION_SUBMITTED' ? 'track-step is-current' : 'track-step'}>CORRECTION_SUBMITTED</span>
-          <span className="track-arrow">→</span>
-          <span className={context.state === 'TEACHER_REVIEWED' ? 'track-step is-current' : 'track-step'}>TEACHER_REVIEWED</span>
-          <span className="track-arrow">→</span>
-          <span className={context.state === 'COMPLETED' ? 'track-step is-current' : 'track-step'}>COMPLETED</span>
-        </div>
-      </section>
+      {role !== 'QUALITY' && (
+        <section className="workflow-banner" aria-label="当前流程">
+          <div>
+            <span className="section-kicker">WORKFLOW CONTEXT</span>
+            <p>{workflowHints[context.state]}</p>
+          </div>
+          <div className="workflow-track" aria-label="状态流转">
+            <span className={context.state === 'DRAFT' ? 'track-step is-current' : 'track-step'}>DRAFT</span>
+            <span className="track-arrow">→</span>
+            <span className={context.state === 'PUBLISHED' ? 'track-step is-current' : 'track-step'}>PUBLISHED</span>
+            <span className="track-arrow">→</span>
+            <span className={context.state === 'SUBMITTED' ? 'track-step is-current' : 'track-step'}>SUBMITTED</span>
+            <span className="track-arrow">→</span>
+            <span className={context.state === 'AI_GRADED' ? 'track-step is-current' : 'track-step'}>AI_GRADED</span>
+            <span className="track-arrow">→</span>
+            <span className={context.state === 'CORRECTION_SUBMITTED' ? 'track-step is-current' : 'track-step'}>CORRECTION_SUBMITTED</span>
+            <span className="track-arrow">→</span>
+            <span className={context.state === 'TEACHER_REVIEWED' ? 'track-step is-current' : 'track-step'}>TEACHER_REVIEWED</span>
+            <span className="track-arrow">→</span>
+            <span className={context.state === 'COMPLETED' ? 'track-step is-current' : 'track-step'}>COMPLETED</span>
+          </div>
+        </section>
+      )}
 
-      <ErrorNotice message={notice} />
+      {role !== 'QUALITY' && <ErrorNotice message={notice} />}
 
-      {role === 'TEACHER' ? (
+      {role === 'QUALITY' ? (
+        <EvaluationDashboard evaluationRunner={evaluationRunner} />
+      ) : role === 'TEACHER' ? (
         <section aria-labelledby="teacher-view-title">
           <div className="view-heading">
             <div>
@@ -605,7 +623,9 @@ export default function App({ provider }: AppProps = {}) {
       )}
 
       <footer className="app-footer">
-        <span>当前阶段：Phase 5 · Teacher / Student Business UI</span>
+        <span>
+          当前阶段：{role === 'QUALITY' ? 'Phase 6 · AI Quality Evaluation Dashboard' : 'Phase 5 · Teacher / Student Business UI'}
+        </span>
       </footer>
     </main>
   );
