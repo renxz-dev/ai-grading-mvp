@@ -205,7 +205,11 @@ describe('Q4 single-correction and final review boundary', () => {
       'Q4 feedback must be visible before correction',
     );
 
-    const preReviewed = reviewAiResult(graded, 'Q4', {
+    let preReviewed = reviewAiResult(graded, 'Q2', {
+      action: 'APPROVE',
+      reviewReason: '确认反馈',
+    });
+    preReviewed = reviewAiResult(preReviewed, 'Q4', {
       action: 'APPROVE',
       reviewReason: '确认反馈',
     });
@@ -218,9 +222,79 @@ describe('Q4 single-correction and final review boundary', () => {
     );
   });
 
+  it('rejects correction while another required pre-review remains pending', async () => {
+    const graded = await gradeInitialSubmission();
+    const q4Approved = reviewAiResult(graded, 'Q4', {
+      action: 'APPROVE',
+      reviewReason: '确认 Q4 反馈',
+    });
+
+    expect(() => submitCorrection(q4Approved, q4CorrectionAnswer)).toThrow(
+      'all required AI pre-reviews must be completed before correction',
+    );
+    expect(q4Approved.results.Q2.reviewStatus).toBe('PENDING');
+  });
+
+  it('does not complete a context with an unresolved pre-review', async () => {
+    const graded = await gradeInitialSubmission();
+    const q4Approved = reviewAiResult(graded, 'Q4', {
+      action: 'APPROVE',
+      reviewReason: '确认 Q4 反馈',
+    });
+
+    const invalidReviewedContext = {
+      ...q4Approved,
+      state: 'TEACHER_REVIEWED',
+      correction: q4CorrectionAnswer,
+      finalReview: { action: 'PASS' },
+    } as any;
+
+    expect(() => completeWorkflow(invalidReviewedContext)).toThrow(
+      'all required AI pre-reviews must be completed before correction',
+    );
+  });
+
+  it('allows correction after all required pre-reviews are approved', async () => {
+    const graded = await gradeInitialSubmission();
+    let reviewed = reviewAiResult(graded, 'Q2', {
+      action: 'APPROVE',
+      reviewReason: '确认 Q2 反馈',
+    });
+    reviewed = reviewAiResult(reviewed, 'Q4', {
+      action: 'APPROVE',
+      reviewReason: '确认 Q4 反馈',
+    });
+
+    expect(submitCorrection(reviewed, q4CorrectionAnswer).state).toBe(
+      'CORRECTION_SUBMITTED',
+    );
+  });
+
+  it('allows correction after a required pre-review is modified', async () => {
+    const graded = await gradeInitialSubmission();
+    let reviewed = reviewAiResult(graded, 'Q2', {
+      action: 'MODIFY',
+      finalTeacherScore: 4,
+      finalTeacherFeedback: '请核对分数表达。',
+      reviewReason: '教师补充说明',
+    });
+    reviewed = reviewAiResult(reviewed, 'Q4', {
+      action: 'APPROVE',
+      reviewReason: '确认 Q4 反馈',
+    });
+
+    expect(submitCorrection(reviewed, q4CorrectionAnswer).state).toBe(
+      'CORRECTION_SUBMITTED',
+    );
+  });
+
   it('completes the normal PASS path through TEACHER_REVIEWED', async () => {
     const graded = await gradeInitialSubmission();
-    const preReviewed = reviewAiResult(graded, 'Q4', {
+    let preReviewed = reviewAiResult(graded, 'Q2', {
+      action: 'APPROVE',
+      reviewReason: '确认反馈',
+    });
+    preReviewed = reviewAiResult(preReviewed, 'Q4', {
       action: 'APPROVE',
       reviewReason: '确认反馈',
     });
@@ -240,7 +314,11 @@ describe('Q4 single-correction and final review boundary', () => {
 
   it('keeps RETURN in CORRECTION_SUBMITTED and blocks another correction or final review', async () => {
     const graded = await gradeInitialSubmission();
-    const preReviewed = reviewAiResult(graded, 'Q4', {
+    let preReviewed = reviewAiResult(graded, 'Q2', {
+      action: 'APPROVE',
+      reviewReason: '确认反馈',
+    });
+    preReviewed = reviewAiResult(preReviewed, 'Q4', {
       action: 'APPROVE',
       reviewReason: '确认反馈',
     });
@@ -267,7 +345,11 @@ describe('Q4 single-correction and final review boundary', () => {
 
   it('rejects invalid final review actions', async () => {
     const graded = await gradeInitialSubmission();
-    const preReviewed = reviewAiResult(graded, 'Q4', {
+    let preReviewed = reviewAiResult(graded, 'Q2', {
+      action: 'APPROVE',
+      reviewReason: '确认反馈',
+    });
+    preReviewed = reviewAiResult(preReviewed, 'Q4', {
       action: 'APPROVE',
       reviewReason: '确认反馈',
     });
@@ -280,7 +362,11 @@ describe('Q4 single-correction and final review boundary', () => {
 
   it('rejects changes after COMPLETED', async () => {
     const graded = await gradeInitialSubmission();
-    const preReviewed = reviewAiResult(graded, 'Q4', {
+    let preReviewed = reviewAiResult(graded, 'Q2', {
+      action: 'APPROVE',
+      reviewReason: '确认反馈',
+    });
+    preReviewed = reviewAiResult(preReviewed, 'Q4', {
       action: 'APPROVE',
       reviewReason: '确认反馈',
     });

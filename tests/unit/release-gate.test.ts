@@ -62,6 +62,39 @@ const gate = (overrides: {
   });
 
 describe('five frozen release gate rules', () => {
+  it('rejects an empty dataset before evaluating the five frozen rules', () => {
+    expect(() =>
+      evaluateReleaseGate({
+        dataset: [],
+        actualResults: [],
+        evaluations: [],
+        metrics: passingMetrics,
+      }),
+    ).toThrow('dataset must not be empty');
+  });
+
+  it('rejects actual results whose length differs from the dataset', () => {
+    expect(() =>
+      evaluateReleaseGate({
+        dataset: [gc01],
+        actualResults: [],
+        evaluations: [],
+        metrics: passingMetrics,
+      }),
+    ).toThrow('actualResults length must match dataset length');
+  });
+
+  it('rejects evaluations whose length differs from the dataset', () => {
+    expect(() =>
+      evaluateReleaseGate({
+        dataset: [gc01],
+        actualResults: [passingActual],
+        evaluations: [],
+        metrics: passingMetrics,
+      }),
+    ).toThrow('evaluations length must match dataset length');
+  });
+
   it('blocks critical errors', () => {
     expect(gate({ metrics: { criticalErrorCount: 1 } })).toBe('BLOCKED');
   });
@@ -91,6 +124,12 @@ describe('five frozen release gate rules', () => {
 
   it('blocks unsafe feedback detected from actual text', () => {
     expect(gate({ actual: { feedback: '你太差了。' } })).toBe('BLOCKED');
+  });
+
+  it('blocks newly screened unsafe feedback phrases', () => {
+    expect(gate({ actual: { feedback: '连这个都不会，请检查计算。' } })).toBe(
+      'BLOCKED',
+    );
   });
 
   it('passes when none of the five rules is hit', () => {

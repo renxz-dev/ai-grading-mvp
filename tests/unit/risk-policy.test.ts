@@ -55,4 +55,29 @@ describe('runtime risk policy', () => {
     expect(canStudentViewFeedback('APPROVED')).toBe(true);
     expect(canStudentViewFeedback('MODIFIED')).toBe(true);
   });
+
+  it('escalates partial-correct results to HIGH risk regardless of provider fields', () => {
+    const question = demoAssignment.questions.find(({ id }) => id === 'Q3')!;
+    const result: GradingResult = {
+      ...untrustedProviderResult,
+      judgment: 'partial_correct',
+      riskLevel: 'LOW',
+      reviewRequired: false,
+    };
+
+    expect(classifyRuntimeRisk(question, '54', result)).toBe('HIGH');
+  });
+
+  it('escalates consistency failures to HIGH risk regardless of provider fields', () => {
+    const question = demoAssignment.questions.find(({ id }) => id === 'Q3')!;
+    const result: GradingResult = {
+      ...untrustedProviderResult,
+      judgment: 'correct',
+      score: 0,
+      riskLevel: 'LOW',
+      reviewRequired: false,
+    };
+
+    expect(classifyRuntimeRisk(question, '54', result)).toBe('HIGH');
+  });
 });

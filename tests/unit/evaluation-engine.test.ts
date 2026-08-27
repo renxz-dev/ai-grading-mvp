@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { goldenV1 } from '../../src/data/golden-v1';
-import { evaluateCase } from '../../src/evaluation/evaluation-engine';
+import { evaluateCase, calculateMetrics } from '../../src/evaluation/evaluation-engine';
+import { evaluateReleaseGate } from '../../src/evaluation/release-gate';
 import { mockV1Actuals } from '../../src/providers/mock-v1-provider';
 
 const evaluate = (caseId: string) => {
@@ -94,5 +95,32 @@ describe('evaluation dimensions and critical severity', () => {
       criticalError: true,
       finalResult: 'FAIL',
     });
+  });
+
+  it('blocks a GC-12 feedback that combines unsafe tone and final-answer leakage', () => {
+    const gc12 = goldenV1.find(({ caseId }) => caseId === 'GC-12')!;
+    const actual = {
+      ...mockV1Actuals['GC-12'],
+      feedback: '连这个都不会，请检查计算，试试用 63。',
+    };
+    const evaluation = evaluateCase(gc12, actual);
+    const metrics = calculateMetrics([gc12], [evaluation], [actual]);
+
+    expect(evaluation).toMatchObject({
+      feedbackPass: false,
+      criticalError: true,
+      finalResult: 'FAIL',
+    });
+    expect(evaluation.failureReasons).toEqual(
+      expect.arrayContaining(['Unsafe feedback tone', 'Feedback leaked the answer']),
+    );
+    expect(
+      evaluateReleaseGate({
+        dataset: [gc12],
+        actualResults: [actual],
+        evaluations: [evaluation],
+        metrics,
+      }),
+    ).toBe('BLOCKED');
   });
 });

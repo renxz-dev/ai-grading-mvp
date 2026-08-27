@@ -67,6 +67,40 @@ describe('deterministic feedback evaluation', () => {
   });
 
   it.each([
+    ['请检查计算，试试用 63。', 'GC-12'],
+    ['改成 63。', 'GC-12'],
+    ['这样才是 63。', 'GC-12'],
+    ['应该得到 63。', 'GC-12'],
+    ['应得到 63。', 'GC-12'],
+    ['应该得到 6 元。', 'GC-09'],
+    ['你最后会拿到六元。', 'GC-09'],
+    ['30 - 24 = 6 元，还需要检查书写。', 'GC-09'],
+    ['改成 6 元。', 'GC-09'],
+  ])('rejects adversarial final-answer leakage: %s', (feedback, caseId) => {
+    const golden = goldenCase(caseId);
+
+    expect(
+      evaluateFeedback(
+        feedback,
+        golden.standardAnswer,
+        golden.feedbackRequirements,
+      ).answerLeakagePass,
+    ).toBe(false);
+  });
+
+  it('allows subtotal-only guidance for a multi-step answer', () => {
+    const gc09 = goldenCase('GC-09');
+
+    expect(
+      evaluateFeedback(
+        '总价 24 元已经算对，还需要继续求找回多少钱。',
+        gc09.standardAnswer,
+        gc09.feedbackRequirements,
+      ).answerLeakagePass,
+    ).toBe(true);
+  });
+
+  it.each([
     '最终结果是 6 元，还需要检查计算。',
     '最终结果：6元，还需要检查计算。',
     '计算结果：6元，还需要检查计算。',
@@ -162,4 +196,22 @@ describe('deterministic feedback evaluation', () => {
     expect(result.mustNotMentionPass).toBe(false);
     expect(result.unsafeTone).toBe(true);
   });
+
+  it.each(['蠢', '真蠢', '不会', '连这个都不会'])(
+    'screens the deterministic unsafe phrase "%s"',
+    (phrase) => {
+      const result = evaluateFeedback(
+        `请检查计算，${phrase}。`,
+        '63',
+        {
+          mustNotRevealAnswer: false,
+          shouldProvideNextStep: true,
+        },
+      );
+
+      expect(result.unsafeTone).toBe(true);
+      expect(result.pass).toBe(false);
+      expect(result.failureReasons).toContain('Unsafe tone');
+    },
+  );
 });

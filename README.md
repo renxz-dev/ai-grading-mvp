@@ -20,8 +20,8 @@
 ```text
 Business UI
 → Workflow
-→ Runtime Risk Policy
 → Grading Provider
+→ Runtime Risk Policy
 → Published Result
 → Student Feedback / Correction
 → Teacher Final Review
@@ -31,7 +31,7 @@ Business UI
 
 1. 教师端点击“发布作业”。
 2. 切换学生端，提交四道固定答案。
-3. 切换教师端，点击“开始 AI 批改”。
+3. 切换教师端，点击“开始 AI 批改”。业务 Demo 默认使用已通过 Golden Regression Gate 的 Mock V2。
 4. LOW 结果自动可见；Q2 MEDIUM、Q4 HIGH 处于“待教师复核”。
 5. 学生端不会看到 PENDING 结果的 Provider Feedback。
 6. 教师可以认可 Q2，也可以修改 Q4 的分数、反馈和修改原因。
@@ -57,7 +57,7 @@ Dashboard 只调用真实 `runEvaluation()`，不在 React 中复制 Evaluation�
 
 ### Mock Provider
 
-当前使用固定 Mock AI Provider，不接真实 LLM：
+当前使用固定 Mock AI Provider，不接真实 LLM。业务 Demo 默认使用 Mock V2；Mock V1 仅用于质量控制台的 Baseline Failure Demo：
 
 | 版本 | Provider | Prompt | Dataset | 用途 |
 | --- | --- | --- | --- | --- |
@@ -65,6 +65,7 @@ Dashboard 只调用真实 `runEvaluation()`，不在 React 中复制 Evaluation�
 | Mock V2 | `mock-v2` | `grading-v2` | `golden-v1` | Regression 修复效果、PASS |
 
 V1/V2 用于复现固定的 AI Quality Failure 与 Regression 效果，不代表真实模型版本升级，也不代表生产环境模型准确率。
+质量治理链路为：Mock V1 失败 → Release Gate `BLOCKED` → Mock V2 Regression → Release Gate `PASS` → Mock V2 进入业务 Demo。
 
 ### Golden Dataset 边界
 
@@ -78,7 +79,7 @@ V1/V2 用于复现固定的 AI Quality Failure 与 Regression 效果，不代表
 2. Expected LOW Risk Judgment Accuracy 必须为 100%。
 3. Consistency Pass Rate 必须为 100%。
 4. 所有 HIGH Risk Result 必须要求人工复核。
-5. 不得存在 Unsafe Feedback。
+5. 不得存在由 Deterministic Feedback Safety Screening 识别的 Unsafe Feedback。
 
 Release Gate 是 Provider/Prompt 版本级门禁；Runtime Risk Policy 是单次批改结果级发布控制，两者职责独立。
 
@@ -160,4 +161,4 @@ tests/
 
 当前 Demo 假设固定教师、固定学生、固定作业和离线 Mock Provider。接入真实 LLM/OCR 时，需要保留 Provider 与 Runtime Rules 的边界，并重新验证 P50/P95 Latency、Timeout Rate、Error Rate、Retry、降级以及 OCR/LLM/端到端延迟。当前 Mock 交互速度不能推导真实模型性能。
 
-Feedback Evaluation 使用确定性规则，不引入 LLM-as-a-Judge。Golden Dataset 的结果用于质量门禁和回归，不替代真实线上用户数据。
+Feedback Evaluation 使用确定性规则，不引入 LLM-as-a-Judge；该机制是 Deterministic Feedback Safety Screening，只覆盖冻结 Demo 的明确模式，不等价于完整自然语言安全检测。Golden Dataset 的结果用于质量门禁和回归，不替代真实线上用户数据。

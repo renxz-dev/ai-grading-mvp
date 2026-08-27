@@ -14,6 +14,10 @@ const UNSAFE_PHRASES = [
   '这么简单',
   '太差',
   '笨',
+  '蠢',
+  '真蠢',
+  '不会',
+  '连这个都不会',
   '你怎么又错了',
 ];
 
@@ -62,6 +66,8 @@ function normalizeAnswerFragment(value: string): string {
     )
     .replace(/块钱|人民币/g, '元')
     .replace(/厘米/g, 'cm')
+    .replace(/[＋﹢]/g, '+')
+    .replace(/[－﹣−]/g, '-')
     .replace(/[\uff1a:]/g, '是')
     .replace(/[\u3002．，,；;！!？?]/g, '');
 }
@@ -101,6 +107,11 @@ function containsNumericConclusion(value: string, finalNumber: number): boolean 
     '(?:最终|计算)?结果(?:是|为)?',
     '(?:应|最后|最终)?找回(?:的)?(?:金额)?(?:是|为)?',
     '(?:最后|最终)?(?:还剩|剩余)(?:是|为)?',
+    '(?:试试|试着|尝试)(?:用|写|填)',
+    '(?:改(?:成|为)|换成|写成|填成)',
+    '(?:应该?|应当?)(?:会|能)?(?:得到|得出|拿到|获得|是)',
+    '(?:最后|最终)(?:会|将)?(?:得到|得出|拿到|获得)',
+    '(?:这样|这才|那才)(?:才)?(?:是|对)(?:答案)?',
     '可得',
     '填入',
     '填写',
@@ -115,8 +126,15 @@ function containsNumericConclusion(value: string, finalNumber: number): boolean 
   const directWriteInstruction = new RegExp(
     `${numberToken}(?:元|个|cm)?[^\\d.]{0,4}(?:写在|写为)`,
   );
+  const arithmeticConclusion = new RegExp(
+    `(?<![\\d.])-?\\d+(?:[+\\-×*÷/]\\d+)+=${numberToken}(?:元|个|cm)?`,
+  );
 
-  return valueAfterCue.test(value) || directWriteInstruction.test(value);
+  return (
+    valueAfterCue.test(value) ||
+    directWriteInstruction.test(value) ||
+    arithmeticConclusion.test(value)
+  );
 }
 
 function containsAnswerLeakage(

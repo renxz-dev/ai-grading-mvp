@@ -283,6 +283,12 @@ export function getStudentFeedback(
   return copyResult(questionResult.publishedResult);
 }
 
+function requirePreReviewsResolved(context: WorkflowContext): void {
+  if (Object.values(context.results).some(({ reviewStatus }) => reviewStatus === 'PENDING')) {
+    throw new Error('all required AI pre-reviews must be completed before correction');
+  }
+}
+
 export function submitCorrection(
   context: WorkflowContext,
   correction: StudentAnswer,
@@ -304,6 +310,8 @@ export function submitCorrection(
   if (!getStudentFeedback(context, correction.questionId)) {
     throw new Error('Q4 feedback must be visible before correction');
   }
+
+  requirePreReviewsResolved(context);
 
   return finalizeContext({
     ...context,
@@ -345,6 +353,8 @@ export function completeWorkflow(context: WorkflowContext): WorkflowContext {
   if (context.finalReview?.action !== 'PASS') {
     throw new Error('requires final review PASS');
   }
+
+  requirePreReviewsResolved(context);
 
   return finalizeContext({
     ...context,

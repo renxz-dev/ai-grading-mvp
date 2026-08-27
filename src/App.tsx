@@ -10,7 +10,7 @@ import {
   q4CorrectionAnswer,
 } from './data/demo-assignment';
 import type { GradingProvider } from './providers/grading-provider';
-import { createMockV1Provider } from './providers/mock-v1-provider';
+import { createMockV2Provider } from './providers/mock-v2-provider';
 import EvaluationDashboard from './components/EvaluationDashboard';
 import type { EvaluationRunner } from './components/EvaluationDashboard';
 import { runEvaluation } from './evaluation/evaluation-run';
@@ -89,7 +89,7 @@ function ErrorNotice({ message }: { message: string | undefined }) {
 
 export default function App({ provider, evaluationRunner: evaluationRunnerProp }: AppProps = {}) {
   const activeProvider = useMemo(
-    () => provider ?? createMockV1Provider(),
+    () => provider ?? createMockV2Provider(),
     [provider],
   );
   const evaluationRunner = evaluationRunnerProp ?? runEvaluation;
@@ -160,7 +160,9 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
         showError(error);
       }
     } finally {
-      setIsGrading(false);
+      if (gradingGeneration === demoGeneration.current) {
+        setIsGrading(false);
+      }
     }
   }
 
@@ -256,6 +258,9 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
   }
 
   const finalReviewNotice = getFinalReviewNotice(context);
+  const hasPendingPreReviews = Object.values(context.results).some(
+    ({ reviewStatus }) => reviewStatus === 'PENDING',
+  );
 
   return (
     <main className="app-shell">
@@ -268,7 +273,7 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
           </p>
         </div>
         <div className="hero-meta">
-          <span className="provider-chip">Mock AI Provider</span>
+          <span className="provider-chip">Mock AI Provider · {activeProvider.providerVersion}</span>
           <span>固定教师 · 固定学生</span>
         </div>
       </header>
@@ -489,7 +494,7 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
           </div>
 
           {context.state === 'CORRECTION_SUBMITTED' && context.correction && (
-            <section className="final-review-panel" aria-labelledby="final-review-title">
+            <section className="final-review-panel" aria-labelledby="final-review-title" data-testid="final-review-panel">
               <div className="view-heading compact-heading">
                 <div>
                   <span className="section-kicker">FINAL REVIEW</span>
@@ -509,7 +514,7 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
               </div>
               <div className="final-review-grid">
                 <div><span className="field-label">原始答案</span><pre>{displayAnswer(context, 'Q4')}</pre></div>
-                <div><span className="field-label">AI Feedback</span><p>{context.results.Q4?.providerResult.feedback}</p></div>
+                <div><span className="field-label">已发布 Feedback</span><p>{context.results.Q4?.publishedResult.feedback}</p></div>
                 <div><span className="field-label">学生一次订正</span><pre>{context.correction.answer}</pre></div>
               </div>
               {finalReviewNotice && <p className="notice notice-warning">{finalReviewNotice}</p>}
@@ -576,7 +581,9 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
                       <div className="metric-grid student-metrics">
                         <div className="metric"><span>Judgment</span><strong>{feedback.judgment}</strong></div>
                         <div className="metric"><span>Score</span><strong>{feedback.score} / {question.maxScore}</strong></div>
-                        <div className="metric"><span>订正状态</span><strong>{context.correction && question.id === 'Q4' ? '已提交' : '待订正'}</strong></div>
+                        {question.id === 'Q4' && (
+                          <div className="metric"><span>订正状态</span><strong>{context.correction ? '已提交' : '待订正'}</strong></div>
+                        )}
                       </div>
                       <div className="feedback-panel feedback-panel-published">
                         <span className="field-label">Feedback</span>
@@ -594,19 +601,22 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
                             id="q4-correction"
                             rows={4}
                             value={context.correction?.answer ?? correctionDraft}
-                            disabled={Boolean(context.correction) || context.state !== 'AI_GRADED'}
+                            disabled={Boolean(context.correction) || context.state !== 'AI_GRADED' || hasPendingPreReviews}
                             onChange={(event) => setCorrectionDraft(event.target.value)}
                           />
-                          <button className="button button-primary" type="button" onClick={handleCorrection} disabled={Boolean(context.correction) || context.state !== 'AI_GRADED'}>
+                          <button className="button button-primary" type="button" onClick={handleCorrection} disabled={Boolean(context.correction) || context.state !== 'AI_GRADED' || hasPendingPreReviews}>
                             提交订正
                           </button>
+                          {hasPendingPreReviews && (
+                            <p className="notice notice-info">请先完成所有待教师复核结果，再提交订正。</p>
+                          )}
                         </div>
                       )}
                     </>
                   ) : result ? (
                     <div className="visibility-gate">
                       <span className="gate-icon">◌</span>
-                      <div><strong>该题正在由教师复核</strong><p>该题正在由教师复核，完成后可查看反馈。</p></div>
+                      <div><strong>该题正在由教师复核</strong><p>该题正在由教师复核，完成后可查看反馈。</p>{question.id === 'Q4' && <p>教师复核完成后，才能提交一次订正。</p>}</div>
                     </div>
                   ) : (
                     <p className="empty-result">{context.state === 'DRAFT' ? '请等待教师发布作业。' : '提交后即可查看批改结果。'}</p>
@@ -624,7 +634,7 @@ export default function App({ provider, evaluationRunner: evaluationRunnerProp }
 
       <footer className="app-footer">
         <span>
-          当前阶段：{role === 'QUALITY' ? 'Phase 6 · AI Quality Evaluation Dashboard' : 'Phase 5 · Teacher / Student Business UI'}
+          当前产品：AI 智能作业批改 MVP · {role === 'QUALITY' ? 'AI Quality Console' : 'Business Workflow'}
         </span>
       </footer>
     </main>

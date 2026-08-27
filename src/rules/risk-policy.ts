@@ -4,6 +4,7 @@ import type {
   ReviewStatus,
   RiskLevel,
 } from '../domain/models';
+import { checkGradingConsistency } from './consistency';
 
 export interface RuntimeDecision {
   riskLevel: RiskLevel;
@@ -14,13 +15,21 @@ export interface RuntimeDecision {
 export function classifyRuntimeRisk(
   question: Question,
   _studentAnswer: string,
-  _result: GradingResult,
+  result: GradingResult,
 ): RiskLevel {
-  if (question.id === 'Q4' || question.questionType === 'word_problem') {
+  if (question.questionType === 'word_problem') {
     return 'HIGH';
   }
 
-  if (question.id === 'Q2' || question.questionType === 'fill_blank') {
+  if (result.judgment === 'partial_correct') {
+    return 'HIGH';
+  }
+
+  if (!checkGradingConsistency(result).pass) {
+    return 'HIGH';
+  }
+
+  if (question.questionType === 'fill_blank') {
     return 'MEDIUM';
   }
 

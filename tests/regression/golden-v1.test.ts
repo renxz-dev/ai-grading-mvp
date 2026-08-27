@@ -191,7 +191,7 @@ describe('frozen V1/V2 regression', () => {
     ).toEqual(['GC-06', 'GC-07', 'GC-10', 'GC-11', 'GC-12']);
     expect(run.metrics.reasonAccuracy).toBeCloseTo(4 / 6);
     expect(run.metrics.reviewPolicyPassRate).toBeCloseTo(11 / 12);
-    expect(run.metrics.reviewRate).toBeCloseTo(6 / 12);
+    expect(run.metrics.reviewRate).toBeCloseTo(7 / 12);
   });
 
   it('computes the Mock V2 regression against the same golden-v1', async () => {
@@ -215,5 +215,6 @@ describe('frozen V1/V2 regression', () => {
     expect(run.results.every(({ finalResult }) => finalResult === 'PASS')).toBe(
       true,
     );
+    expect(run.metrics.reviewRate).toBeCloseTo(6 / 12);
   });
 });

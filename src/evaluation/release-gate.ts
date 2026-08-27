@@ -18,7 +18,23 @@ export interface GateInput {
 
 export type { ReleaseGateDetails, ReleaseGateRuleDetail, ReleaseGateRuleId } from '../domain/models';
 
+function validateGateInput(input: GateInput): void {
+  if (input.dataset.length === 0) {
+    throw new Error('dataset must not be empty');
+  }
+
+  if (input.dataset.length !== input.actualResults.length) {
+    throw new Error('actualResults length must match dataset length');
+  }
+
+  if (input.dataset.length !== input.evaluations.length) {
+    throw new Error('evaluations length must match dataset length');
+  }
+}
+
 export function evaluateReleaseGateDetails(input: GateInput): ReleaseGateDetails {
+  validateGateInput(input);
+
   const expectedLowIndexes = input.dataset
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.expected.riskLevel === 'LOW')

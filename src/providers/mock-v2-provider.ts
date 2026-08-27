@@ -1,6 +1,6 @@
 import type { GradingResult } from '../domain/models';
 import type { GradingInput, GradingProvider } from './grading-provider';
-import { mockV1Actuals } from './mock-v1-provider';
+import { deepFreeze, mockV1Actuals, type DeepReadonly } from './mock-v1-provider';
 
 const fixedActuals: Readonly<Record<string, GradingResult>> = {
   'GC-06': { judgment: 'incorrect', score: 0, errorType: 'calculation_error', feedback: '请检查计算过程并重新计算。', riskLevel: 'LOW', reviewRequired: false },
@@ -10,10 +10,18 @@ const fixedActuals: Readonly<Record<string, GradingResult>> = {
   'GC-12': { judgment: 'incorrect', score: 0, errorType: 'calculation_error', feedback: '请检查计算过程并重新计算。', riskLevel: 'LOW', reviewRequired: false },
 };
 
-const mockV2Actuals: Readonly<Record<string, GradingResult>> = {
-  ...mockV1Actuals,
-  ...fixedActuals,
-};
+function copyActuals(
+  actuals: Readonly<Record<string, GradingResult>>,
+): Record<string, GradingResult> {
+  return Object.fromEntries(
+    Object.entries(actuals).map(([caseId, result]) => [caseId, { ...result }]),
+  );
+}
+
+export const mockV2Actuals: DeepReadonly<Record<string, GradingResult>> = deepFreeze({
+  ...copyActuals(mockV1Actuals),
+  ...copyActuals(fixedActuals),
+});
 
 const businessActuals: Readonly<Record<string, GradingResult>> = {
   Q1: mockV2Actuals['GC-01'],
