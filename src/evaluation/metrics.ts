@@ -2,8 +2,14 @@ import type {
   EvaluationMetrics,
   EvaluationResult,
   GoldenCase,
+  GradingResult,
+  Question,
 } from '../domain/models';
-import type { RuntimeDecision } from '../rules/risk-policy';
+import {
+  classifyRuntimeRisk,
+  createRuntimeDecision,
+  type RuntimeDecision,
+} from '../rules/risk-policy';
 
 function ratio(passed: number, total: number): number {
   return total === 0 ? 1 : passed / total;
@@ -21,9 +27,38 @@ function countPassing(
   return evaluations.filter((item) => item[key]).length;
 }
 
+function calculateRuntimeDecisions(
+  dataset: readonly GoldenCase[],
+  actualResults: readonly GradingResult[],
+): RuntimeDecision[] {
+  return dataset.map((goldenCase, index) => {
+    const actualResult = actualResults[index];
+    if (!actualResult) {
+      throw new Error(`Missing actual result for ${goldenCase.caseId}`);
+    }
+
+    const question: Question = {
+      id: goldenCase.caseId,
+      questionType: goldenCase.questionType,
+      prompt: goldenCase.question,
+      options: goldenCase.options,
+      standardAnswer: goldenCase.standardAnswer,
+      maxScore: goldenCase.maxScore,
+    };
+    const runtimeRisk = classifyRuntimeRisk(
+      question,
+      goldenCase.studentAnswer,
+      actualResult,
+    );
+
+    return createRuntimeDecision(runtimeRisk);
+  });
+}
+
 export function calculateMetrics(
   dataset: readonly GoldenCase[],
   evaluations: readonly EvaluationResult[],
+  actualResults: readonly GradingResult[],
 ): EvaluationMetrics {
   const reasonEvaluationIndexes = dataset
     .map((item, index) => ({ item, index }))
@@ -33,6 +68,7 @@ export function calculateMetrics(
     (index) => evaluations[index]?.reasonPass === true,
   ).length;
   const total = dataset.length;
+  const runtimeDecisions = calculateRuntimeDecisions(dataset, actualResults);
 
   return {
     judgmentAccuracy: ratio(countPassing(evaluations, 'judgmentPass'), total),
@@ -53,10 +89,7 @@ export function calculateMetrics(
     ),
     criticalErrorCount: evaluations.filter(({ criticalError }) => criticalError)
       .length,
-    reviewRate: ratio(
-      dataset.filter(({ expected }) => expected.reviewRequired).length,
-      total,
-    ),
+    reviewRate: calculateRuntimeHumanReviewRate(runtimeDecisions),
   };
 }
 

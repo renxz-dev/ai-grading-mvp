@@ -14,7 +14,7 @@ export async function runEvaluation(
   startedAt = new Date().toISOString(),
 ): Promise<EvaluationRun> {
   const { actualResults, evaluations } = await evaluateDataset(dataset, provider);
-  const metrics = calculateMetrics(dataset, evaluations);
+  const metrics = calculateMetrics(dataset, evaluations, actualResults);
   const gateResult = evaluateReleaseGate({
     dataset,
     actualResults,
