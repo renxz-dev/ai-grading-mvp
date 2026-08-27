@@ -29,10 +29,10 @@ export type WorkflowState =
   | 'COMPLETED';
 
 export interface Question {
-  id: 'Q1' | 'Q2' | 'Q3' | 'Q4' | string;
+  id: string;
   questionType: QuestionType;
   prompt: string;
-  options?: string[];
+  options?: readonly string[];
   standardAnswer: string;
   maxScore: number;
 }
@@ -58,24 +58,24 @@ export interface GradingResult {
 }
 
 export interface FeedbackRequirements {
-  mustMention?: string[];
-  mustNotMention?: string[];
-  mustNotRevealAnswer: boolean;
-  shouldProvideNextStep: boolean;
+  readonly mustMention?: readonly string[];
+  readonly mustNotMention?: readonly string[];
+  readonly mustNotRevealAnswer: boolean;
+  readonly shouldProvideNextStep: boolean;
 }
 
 export interface GoldenCase {
-  caseId: `GC-${string}`;
-  title: string;
-  questionType: QuestionType;
-  difficulty: string;
-  question: string;
-  options?: string[];
-  standardAnswer: string;
-  studentAnswer: string;
-  maxScore: number;
-  expected: Omit<GradingResult, 'feedback'>;
-  feedbackRequirements?: FeedbackRequirements;
+  readonly caseId: `GC-${string}`;
+  readonly title: string;
+  readonly questionType: QuestionType;
+  readonly difficulty: string;
+  readonly question: string;
+  readonly options?: readonly string[];
+  readonly standardAnswer: string;
+  readonly studentAnswer: string;
+  readonly maxScore: number;
+  readonly expected: Readonly<Omit<GradingResult, 'feedback'>>;
+  readonly feedbackRequirements?: FeedbackRequirements;
 }
 
 export interface EvaluationResult {
@@ -145,7 +145,7 @@ export interface EvaluationRun {
   runId: string;
   providerVersion: 'mock-v1' | 'mock-v2';
   promptVersion: 'grading-v1' | 'grading-v2';
-  datasetVersion: 'golden-v1';
+  datasetVersion: string;
   startedAt: string;
   totalCases: number;
   passedCases: number;

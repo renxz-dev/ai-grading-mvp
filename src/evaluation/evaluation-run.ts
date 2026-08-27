@@ -10,6 +10,7 @@ import { evaluateReleaseGate } from './release-gate';
 export async function runEvaluation(
   provider: GradingProvider,
   dataset: readonly GoldenCase[],
+  datasetVersion: string,
   startedAt = new Date().toISOString(),
 ): Promise<EvaluationRun> {
   const { actualResults, evaluations } = await evaluateDataset(dataset, provider);
@@ -28,7 +29,7 @@ export async function runEvaluation(
     runId: `${provider.providerVersion}:${startedAt}`,
     providerVersion: provider.providerVersion,
     promptVersion: provider.promptVersion,
-    datasetVersion: 'golden-v1',
+    datasetVersion,
     startedAt,
     totalCases: dataset.length,
     passedCases,

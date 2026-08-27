@@ -30,19 +30,120 @@ function normalizeText(value: string): string {
   return value.toLowerCase().replace(/\s+/g, '');
 }
 
+const CHINESE_DIGITS: Readonly<Record<string, number>> = {
+  零: 0,
+  〇: 0,
+  一: 1,
+  二: 2,
+  三: 3,
+  四: 4,
+  五: 5,
+  六: 6,
+  七: 7,
+  八: 8,
+  九: 9,
+};
+
+function parseChineseNumeral(value: string): number {
+  if (!value.includes('十')) {
+    return Number([...value].map((digit) => CHINESE_DIGITS[digit]).join(''));
+  }
+
+  const [tensPart, onesPart] = value.split('十');
+  const tens = tensPart ? CHINESE_DIGITS[tensPart] : 1;
+  const ones = onesPart ? CHINESE_DIGITS[onesPart] : 0;
+  return tens * 10 + ones;
+}
+
+function normalizeAnswerFragment(value: string): string {
+  return normalizeText(value)
+    .replace(/[零〇一二三四五六七八九十]+/g, (numeral) =>
+      String(parseChineseNumeral(numeral)),
+    )
+    .replace(/块钱|人民币/g, '元')
+    .replace(/厘米/g, 'cm')
+    .replace(/[\uff1a:]/g, '是')
+    .replace(/[\u3002．，,；;！!？?]/g, '');
+}
+
+function extractFinalConclusion(standardAnswer: string): string {
+  const answerSteps = standardAnswer
+    .split(/[\r\n；;，,]+/)
+    .map(normalizeAnswerFragment)
+    .filter(Boolean);
+
+  return answerSteps.at(-1) ?? '';
+}
+
+function extractNumericValues(value: string): number[] {
+  return [...value.matchAll(/-?\d+(?:\.\d+)?/g)].map(([match]) =>
+    Number(match),
+  );
+}
+
+function containsConclusionCue(value: string): boolean {
+  return /(?:正确答案|最终答案|答案)(?:是|为)?|(?:最终|计算)?结果(?:是|为)|(?:应|最后|最终)?找回(?:金额)?(?:是|为)?|还剩|剩余|可得|填入|填写|写在|写为/.test(value);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsNumericConclusion(value: string, finalNumber: number): boolean {
+  const serializedNumber = escapeRegExp(String(finalNumber));
+  const equivalentNumber = Number.isInteger(finalNumber)
+    ? `${serializedNumber}(?:\\.0+)?`
+    : serializedNumber;
+  const leadingBoundary = finalNumber >= 0 ? '(?<![\\d.-])' : '(?<![\\d.])';
+  const numberToken = `${leadingBoundary}${equivalentNumber}(?![\\d.])`;
+  const cueBeforeValue = [
+    '(?:正确答案|最终答案|答案)(?:是|为)?',
+    '(?:最终|计算)?结果(?:是|为)?',
+    '(?:应|最后|最终)?找回(?:的)?(?:金额)?(?:是|为)?',
+    '(?:最后|最终)?(?:还剩|剩余)(?:是|为)?',
+    '可得',
+    '填入',
+    '填写',
+  ].join('|');
+
+  // A final-value cue and the value must be part of the same short expression.
+  // This avoids coupling an instructional cue with an unrelated step or count
+  // elsewhere in the feedback.
+  const valueAfterCue = new RegExp(
+    `(?:${cueBeforeValue})[^\\d.]{0,4}${numberToken}`,
+  );
+  const directWriteInstruction = new RegExp(
+    `${numberToken}(?:元|个|cm)?[^\\d.]{0,4}(?:写在|写为)`,
+  );
+
+  return valueAfterCue.test(value) || directWriteInstruction.test(value);
+}
+
 function containsAnswerLeakage(
   feedback: string,
   standardAnswer: string,
 ): boolean {
-  if (/正确答案(?:是|为)|答案(?:是|为)/.test(feedback)) {
+  const normalizedFeedback = normalizeAnswerFragment(feedback);
+  const normalizedStandard = normalizeAnswerFragment(standardAnswer);
+  const finalConclusion = extractFinalConclusion(standardAnswer);
+  const finalNumbers = extractNumericValues(finalConclusion);
+  const finalNumber = finalNumbers.at(-1);
+
+  if (normalizedFeedback === normalizedStandard) {
     return true;
   }
 
-  const normalizedStandard = normalizeText(standardAnswer).replace(
-    /[。．，,；;：:！!？?]/g,
-    '',
+  if (finalNumber !== undefined) {
+    return containsNumericConclusion(normalizedFeedback, finalNumber);
+  }
+
+  const finalText = finalConclusion.replace(/^(?:正确)?答案(?:是|为)?/, '');
+
+  return (
+    finalText.length > 0 &&
+    containsConclusionCue(normalizedFeedback) &&
+    normalizedFeedback.includes(finalText)
   );
-  return normalizedStandard.length > 0 && normalizeText(feedback).includes(normalizedStandard);
 }
 
 export function evaluateFeedback(

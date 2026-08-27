@@ -83,6 +83,23 @@ describe('golden-v1', () => {
     ]);
   });
 
+  it('deep-freezes nested ground-truth objects and feedback requirement arrays', () => {
+    const gc01 = goldenV1[0];
+    const gc02 = goldenV1.find(({ caseId }) => caseId === 'GC-02')!;
+    const gc12 = goldenV1.find(({ caseId }) => caseId === 'GC-12')!;
+
+    expect(Object.isFrozen(goldenV1)).toBe(true);
+    expect(Object.isFrozen(gc01)).toBe(true);
+    expect(Object.isFrozen(gc01.expected)).toBe(true);
+    expect(Object.isFrozen(gc01.options)).toBe(true);
+    expect(Object.isFrozen(gc02.feedbackRequirements)).toBe(true);
+    expect(Object.isFrozen(gc02.feedbackRequirements?.mustMention)).toBe(true);
+    expect(Object.isFrozen(gc12.feedbackRequirements)).toBe(true);
+    expect(Object.isFrozen(gc12.feedbackRequirements?.mustNotMention)).toBe(
+      true,
+    );
+  });
+
   it('locks the critical expected values and GC-09 deterministic requirements', () => {
     const byId = Object.fromEntries(goldenV1.map((item) => [item.caseId, item]));
 
@@ -153,6 +170,7 @@ describe('frozen V1/V2 regression', () => {
     const run = await runEvaluation(
       createMockV1Provider({ delayMs: 0 }),
       goldenV1,
+      GOLDEN_DATASET_VERSION,
       '2026-08-26T00:00:00.000Z',
     );
 
@@ -180,6 +198,7 @@ describe('frozen V1/V2 regression', () => {
     const run = await runEvaluation(
       createMockV2Provider({ delayMs: 0 }),
       goldenV1,
+      GOLDEN_DATASET_VERSION,
       '2026-08-26T00:00:00.000Z',
     );
 
